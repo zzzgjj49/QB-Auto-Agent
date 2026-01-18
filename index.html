@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MeltingHack V2.0 // Neural Link</title>
+    <link rel="stylesheet" href="css/style.css?v=5">
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;600;700&family=Share+Tech+Mono&family=Noto+Sans+JP:wght@400;700&family=Orbitron:wght@500;700;900&display=swap" rel="stylesheet">
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Import Map -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+                "gsap": "https://unpkg.com/gsap@3.12.5/index.js"
+            }
+        }
+    </script>
+</head>
+<body>
+    <!-- 3D Canvas Layer -->
+    <canvas id="canvas-webgl"></canvas>
+
+    <!-- UI Layer -->
+    <div id="app-ui">
+        <!-- 1. Header: System Status -->
+        <header class="sys-header">
+            <div class="brand">
+                <i class="fa-solid fa-cube"></i> MELTING<span class="highlight">HACK</span> <span class="version">V2.0</span>
+            </div>
+            <div class="sys-info">
+                <div class="info-item"><i class="fa-solid fa-server"></i> <span id="server-status">CONNECTED</span></div>
+                <div class="info-item"><i class="fa-regular fa-clock"></i> <span id="sys-time">00:00:00</span></div>
+            </div>
+        </header>
+
+        <!-- 2. Sidebar: Navigation -->
+        <nav class="sys-sidebar">
+            <button class="nav-item active" data-view="dashboard" title="ダッシュボード">
+                <i class="fa-solid fa-gauge-high"></i>
+            </button>
+            <button class="nav-item" data-view="ai" title="AI診断">
+                <i class="fa-solid fa-microchip"></i>
+            </button>
+            <button class="nav-item" data-view="3d" title="3Dビュー">
+                <i class="fa-solid fa-cube"></i>
+            </button>
+            <button class="nav-item" data-view="scan" title="完全診断">
+                <i class="fa-solid fa-magnifying-glass-chart"></i>
+            </button>
+            <div class="spacer"></div>
+            <button class="nav-item" id="btn-settings" title="設定">
+                <i class="fa-solid fa-gear"></i>
+            </button>
+        </nav>
+
+        <!-- 3. Main Content Area (Dynamic) -->
+        <main id="main-content">
+            <!-- Content will be injected by UIManager -->
+        </main>
+
+        <!-- 4. Notifications / Logs Overlay -->
+        <div id="notification-area"></div>
+
+        <!-- Loading Screen -->
+        <div id="loading-screen">
+            <div class="loader-wrap">
+                <div class="hex-spinner"></div>
+                <div class="loading-text" data-text="SYSTEM INITIALIZING...">SYSTEM INITIALIZING...</div>
+                <div class="loading-progress">0%</div>
+            </div>
+        </div>
+
+        <!-- Repair Button (Floating) -->
+        <button id="btn-repair-complete" class="cyber-btn-floating hidden">
+            <i class="fa-solid fa-rotate-left"></i> システム正常化
+        </button>
+
+        <!-- Alert Modal -->
+        <div id="alert-modal" class="hidden">
+            <div class="alert-content">
+                <div class="btn-close-modal" id="btn-close-alert"><i class="fa-solid fa-xmark"></i></div>
+                <div class="alert-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                <h2 class="alert-title">WARNING</h2>
+                <p class="alert-desc">Description text here</p>
+                <button class="cyber-btn" id="btn-resolve">
+                    <span class="btn-text">DIAGNOSE & RESOLVE</span>
+                    <span class="btn-glitch"></span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="js/main.js?v=5"></script>
+</body>
+</html>
