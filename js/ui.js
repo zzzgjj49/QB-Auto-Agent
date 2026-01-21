@@ -115,7 +115,27 @@ export class UIManager {
                         </div>
                         <div class="chat-input-box">
                             <input type="text" id="ai-input" placeholder="質問やコマンドを入力..." autocomplete="off">
+                            <button id="btn-mic" class="btn-icon" title="音声入力"><i class="fa-solid fa-microphone"></i></button>
+                            <button id="btn-vision" class="btn-icon" title="AI視覚診断 (Qwen-VL)"><i class="fa-solid fa-eye"></i></button>
                             <button id="btn-ai-send">送信</button>
+                        </div>
+                        <div class="quick-actions">
+                            <button class="action-chip" data-cmd="分解モード">
+                                <i class="fa-solid fa-layer-group"></i> 
+                                <span>分解モード</span>
+                            </button>
+                            <button class="action-chip" data-cmd="ショールームモード">
+                                <i class="fa-solid fa-film"></i> 
+                                <span>シネマティック</span>
+                            </button>
+                            <button class="action-chip" data-cmd="故障予測">
+                                <i class="fa-solid fa-crystal-ball"></i> 
+                                <span>予知保全</span>
+                            </button>
+                            <button class="action-chip" id="btn-reset-view" title="ビューをリセット">
+                                <i class="fa-solid fa-rotate-left"></i>
+                                <span>リセット</span>
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -149,7 +169,7 @@ export class UIManager {
                         </div>
 
                         <!-- 3. Result Phase (Hidden initially) -->
-                        <div id="scan-result-container" class="hidden">
+                        <div id="scan-result-container" class="hidden" style="display: none;">
                             <div class="result-header">
                                 <span class="score-label">車両健康スコア</span>
                                 <span class="score-val" id="health-score">--</span>
@@ -165,6 +185,72 @@ export class UIManager {
                 </div>
             `
         };
+    }
+
+    // Removed overlay creation as we moved logs to chat
+
+    addNeuralLog(type, message) {
+        const history = document.getElementById('chat-history');
+        if (!history) return;
+        
+        const logDiv = document.createElement('div');
+        logDiv.className = 'msg neural-log fade-in';
+        logDiv.innerHTML = `
+            <div style="font-family: 'Rajdhani', monospace; font-size: 11px; color: var(--c-success); border-left: 2px solid var(--c-success); padding-left: 8px; margin: 5px 0 10px 0; background: rgba(0, 255, 136, 0.05);">
+                <div style="font-weight: bold; opacity: 0.8; margin-bottom: 2px;">
+                    <i class="fa-solid fa-microchip"></i> QWEN_THOUGHT_PROCESS [${type}]
+                </div>
+                <div style="opacity: 0.9; line-height: 1.4;">${message}</div>
+            </div>
+        `;
+        
+        history.appendChild(logDiv);
+        history.scrollTop = history.scrollHeight;
+    }
+
+    showTimeline(events) {
+        // Create a Timeline Modal Overlay
+        const modal = document.createElement('div');
+        modal.className = 'timeline-modal fade-in';
+        modal.style.cssText = `
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80%;
+            max-width: 800px;
+            background: rgba(3, 5, 7, 0.95);
+            border: 1px solid var(--c-primary);
+            box-shadow: 0 0 30px rgba(0, 243, 255, 0.2);
+            padding: 30px;
+            border-radius: 12px;
+            z-index: 2000;
+            color: #fff;
+        `;
+        
+        const stepsHtml = events.map((e, index) => `
+            <div class="timeline-step ${e.severity}" style="flex: 1; text-align: center; position: relative; padding: 10px; border: 1px solid rgba(255,255,255,0.1); margin: 0 5px; border-radius: 8px; transition: all 0.3s;">
+                <div style="font-size: 18px; font-weight: bold; margin-bottom: 10px; color: var(--c-primary);">${e.period}</div>
+                <div style="font-size: 14px; margin-bottom: 5px;">${e.impact}</div>
+                <div style="height: 4px; background: #333; margin: 10px 0; border-radius: 2px; overflow: hidden;">
+                    <div style="width: ${(index+1)*33}%; height: 100%; background: ${e.severity === 'fatal' ? 'var(--c-alert)' : (e.severity === 'critical' ? 'orange' : 'var(--c-primary)')};"></div>
+                </div>
+            </div>
+        `).join('<div style="font-size: 24px; color: var(--c-text-dim);">→</div>');
+
+        modal.innerHTML = `
+            <div style="text-align: center; margin-bottom: 20px;">
+                <h2 style="font-family: 'Rajdhani'; letter-spacing: 2px; color: var(--c-primary);"><i class="fa-solid fa-clock-rotate-left"></i> FUTURE IMPACT SIMULATION</h2>
+                <p style="color: var(--c-text-dim);">Qwen-Thinking AI Prediction Model</p>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: stretch;">
+                ${stepsHtml}
+            </div>
+            <button class="cyber-btn" style="margin-top: 30px; width: 100%;" onclick="this.parentNode.remove()">
+                CLOSE SIMULATION
+            </button>
+        `;
+        
+        document.body.appendChild(modal);
     }
 
     init(app) {
@@ -262,9 +348,15 @@ export class UIManager {
         const btnAck = document.getElementById('btn-scan-action');
         if (btnAck) {
             btnAck.addEventListener('click', () => {
-                this.switchView('dashboard');
-                // Also reset scene if needed
-                this.app.sceneManager.resetCamera();
+                // Switch to AI view to show controls
+                this.switchView('ai');
+                
+                // Trigger Explode View automatically for better detail
+                if (this.app) {
+                    this.app.sceneManager.toggleExplodeView();
+                    this.addChatMessage('ai', "詳細確認のため、分解ビューモードを展開しました。");
+                    this.app.sceneManager.setMascotState('idle');
+                }
             });
         }
     }
@@ -272,6 +364,8 @@ export class UIManager {
     setupChatListeners() {
         const input = document.getElementById('ai-input');
         const btn = document.getElementById('btn-ai-send');
+        const btnMic = document.getElementById('btn-mic');
+        const btnVision = document.getElementById('btn-vision');
         const btnClose = document.getElementById('btn-close-chat');
         const btnRefresh = document.getElementById('btn-refresh-chat');
 
@@ -286,10 +380,45 @@ export class UIManager {
                 this.resetChat();
             });
         }
+
+        if (btnMic) {
+            btnMic.addEventListener('click', () => {
+                this.app.toggleVoiceInteraction(btnMic);
+            });
+        }
+        
+        if (btnVision) {
+            btnVision.addEventListener('click', () => {
+                this.app.lastInputSource = 'text'; // Ensure silent mode for button click
+                this.app.triggerVisionAnalysis();
+            });
+        }
+        
+        // Quick Actions
+        document.querySelectorAll('.action-chip[data-cmd]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const cmd = btn.dataset.cmd;
+                this.app.lastInputSource = 'text'; // Treat as text command
+                this.addChatMessage('user', cmd);
+                this.app.processAIInput(cmd);
+            });
+        });
+        
+        // Reset View Button
+        const btnReset = document.getElementById('btn-reset-view');
+        if (btnReset) {
+            btnReset.addEventListener('click', () => {
+                if (this.app && this.app.sceneManager) {
+                    this.app.sceneManager.resetView();
+                    this.addChatMessage('system', 'ビューとハイライトをリセットしました。');
+                }
+            });
+        }
         
         const send = () => {
             const text = input.value.trim();
             if (text) {
+                this.app.lastInputSource = 'text';
                 this.addChatMessage('user', text);
                 this.app.processAIInput(text);
                 input.value = '';

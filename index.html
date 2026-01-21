@@ -93,6 +93,19 @@
                 </button>
             </div>
         </div>
+        <!-- Voice Input Modal -->
+        <div id="voice-input-modal" class="hidden">
+            <div class="voice-modal-content">
+                <div class="btn-close-modal" id="btn-close-voice"><i class="fa-solid fa-xmark"></i></div>
+                <h3 class="voice-modal-title"><i class="fa-solid fa-microphone"></i> 音声入力シミュレーション</h3>
+                <p class="voice-modal-desc">ASRネットワーク接続不可のため、テキストで代替入力してください。</p>
+                <input type="text" id="voice-sim-input" placeholder="例: エンジンの調子が悪い..." autocomplete="off">
+                <div class="voice-modal-actions">
+                    <button class="cyber-btn" id="btn-voice-sim-send">送信</button>
+                </div>
+            </div>
+        </div>
+
     </div>
 
     <script type="module" src="js/main.js?v=5"></script>

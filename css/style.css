@@ -276,6 +276,62 @@ body {
     border-radius: 8px 0 8px 8px;
 }
 
+/* Quick Action Chips */
+.quick-actions {
+    display: flex;
+    gap: 10px;
+    padding: 10px 15px;
+    border-top: 1px solid rgba(255,255,255,0.05);
+}
+
+.action-chip {
+    flex: 1;
+    background: rgba(0, 243, 255, 0.05);
+    border: 1px solid rgba(0, 243, 255, 0.3);
+    color: var(--c-primary);
+    padding: 8px 12px;
+    border-radius: 4px; /* Slightly rounded, tech feel */
+    font-family: var(--f-mono);
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.3s;
+    text-align: center;
+    white-space: nowrap;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    position: relative;
+    overflow: hidden;
+}
+
+.action-chip::before {
+    content: '';
+    position: absolute;
+    top: 0; left: -100%;
+    width: 100%; height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(0, 243, 255, 0.2), transparent);
+    transition: left 0.5s;
+}
+
+.action-chip:hover::before {
+    left: 100%;
+}
+
+.action-chip:hover {
+    background: rgba(0, 243, 255, 0.15);
+    border-color: var(--c-primary);
+    box-shadow: 0 0 10px rgba(0, 243, 255, 0.3);
+    text-shadow: 0 0 5px var(--c-primary);
+    transform: translateY(-2px);
+}
+
+.action-chip i {
+    font-size: 14px;
+}
+
 .chat-input-box {
     padding: 15px;
     border-top: 1px solid rgba(255,255,255,0.1);
@@ -384,30 +440,31 @@ body {
 /* AR Labels (Floating 3D Tags) */
 .ar-label {
     position: absolute;
-    background: rgba(10, 0, 5, 0.9);
+    background: rgba(10, 0, 5, 0.8); /* Slightly more transparent */
     border: 1px solid var(--c-alert);
-    padding: 10px 15px;
+    padding: 6px 10px; /* Reduced padding */
     color: var(--c-alert);
     font-family: var(--f-mono);
-    font-size: 12px;
-    border-radius: 4px;
-    pointer-events: none; /* Let clicks pass through */
-    transform: translate(-50%, -100%); /* Center above point */
+    font-size: 10px; /* Smaller font */
+    border-radius: 2px;
+    pointer-events: none; 
+    transform: translate(-50%, -100%); 
     white-space: nowrap;
-    box-shadow: 0 0 15px rgba(255, 0, 60, 0.3);
+    box-shadow: 0 0 10px rgba(255, 0, 60, 0.2); /* Reduced glow */
     z-index: 100;
     opacity: 0;
     transition: opacity 0.3s;
-    pointer-events: auto; /* Allow clicks for close button */
+    pointer-events: auto; 
     cursor: default;
+    min-width: 100px;
 }
 
 .ar-label-close {
     position: absolute;
-    top: -10px;
-    right: -10px;
-    width: 20px;
-    height: 20px;
+    top: -8px;
+    right: -8px;
+    width: 16px; /* Smaller close button */
+    height: 16px;
     background: var(--c-bg);
     border: 1px solid currentColor;
     border-radius: 50%;
@@ -415,7 +472,7 @@ body {
     display: flex;
     justify-content: center;
     align-items: center;
-    font-size: 12px;
+    font-size: 10px;
     cursor: pointer;
     transition: all 0.2s;
     box-shadow: 0 0 5px rgba(0,0,0,0.5);
@@ -431,18 +488,18 @@ body {
 .ar-label.warning {
     border-color: #ffaa00;
     color: #ffaa00;
-    box-shadow: 0 0 15px rgba(255, 170, 0, 0.3);
+    box-shadow: 0 0 10px rgba(255, 170, 0, 0.2);
 }
 
 .ar-label::after {
     content: '';
     position: absolute;
-    bottom: -6px;
+    bottom: -4px; /* Adjusted for smaller size */
     left: 50%;
     transform: translateX(-50%);
-    border-left: 6px solid transparent;
-    border-right: 6px solid transparent;
-    border-top: 6px solid var(--c-alert);
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-top: 4px solid var(--c-alert);
 }
 
 .ar-label.warning::after {
@@ -451,12 +508,13 @@ body {
 
 .ar-label.visible {
     opacity: 1;
-    animation: float 2s ease-in-out infinite;
+    /* Removed float animation to reduce visual noise */
+    /* animation: float 2s ease-in-out infinite; */ 
 }
 
 .ar-label .label-title {
     font-weight: bold;
-    font-size: 14px;
+    font-size: 11px; /* Smaller title */
     margin-bottom: 2px;
     display: block;
     text-transform: uppercase;
@@ -559,7 +617,7 @@ body {
     padding: 10px;
     margin-bottom: 10px;
 }
-.scan-issue-item.critical { border-color: var(--c-alert); background: rgba(255, 0, 60, 0.1); }
+.scan-issue-item.critical { border-color: #ffaa00; background: rgba(255, 170, 0, 0.1); }
 .scan-issue-item.warning { border-color: #ffaa00; background: rgba(255, 170, 0, 0.1); }
 
 .issue-header { display: flex; justify-content: space-between; margin-bottom: 5px; }
@@ -567,7 +625,7 @@ body {
 .issue-sys { font-size: 12px; color: var(--c-text-dim); }
 .issue-desc { font-size: 14px; color: #eee; margin-bottom: 8px; }
 .issue-action { font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
-.critical .issue-action { color: var(--c-alert); }
+.critical .issue-action { color: #ffaa00; }
 .warning .issue-action { color: #ffaa00; }
 
 .cyber-btn {
@@ -589,6 +647,109 @@ body {
 .fade-in { animation: fadeIn 0.5s ease-out; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-/* Animations */
+/* Voice Input Modal */
+#voice-input-modal {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(5px);
+    z-index: 9999;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.voice-modal-content {
+    background: var(--glass-bg);
+    border: var(--glass-border);
+    border-radius: 12px;
+    padding: 30px;
+    width: 500px;
+    position: relative;
+    box-shadow: 0 0 30px rgba(0, 243, 255, 0.2);
+    text-align: center;
+}
+
+.voice-modal-title {
+    font-family: var(--f-title);
+    color: var(--c-primary);
+    font-size: 20px;
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+.voice-modal-desc {
+    font-size: 14px;
+    color: #ccc;
+    margin-bottom: 20px;
+}
+
+#voice-sim-input {
+    width: 100%;
+    background: rgba(0,0,0,0.5);
+    border: 1px solid rgba(255,255,255,0.2);
+    color: #fff;
+    padding: 12px;
+    border-radius: 4px;
+    font-size: 16px;
+    margin-bottom: 20px;
+    font-family: var(--f-body);
+}
+
+#voice-sim-input:focus {
+    outline: none;
+    border-color: var(--c-primary);
+    box-shadow: 0 0 10px rgba(0, 243, 255, 0.2);
+}
+
+.voice-modal-actions {
+    display: flex;
+    justify-content: center;
+}
 @keyframes spin { 100% { transform: rotate(360deg); } }
 @keyframes pulse { 50% { opacity: 0.5; transform: scale(0.95); } }
+
+.btn-icon {
+    width: 40px;
+    height: 40px;
+    background: transparent;
+    border: 1px solid var(--c-primary);
+    color: var(--c-primary);
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 16px;
+    transition: all 0.3s;
+}
+
+.btn-icon:hover {
+    background: rgba(0, 243, 255, 0.2);
+    box-shadow: 0 0 10px var(--c-primary);
+}
+
+.btn-icon.listening {
+    background: var(--c-alert);
+    border-color: var(--c-alert);
+    color: #fff;
+    box-shadow: 0 0 15px var(--c-alert);
+    animation: pulse-red 1s infinite;
+}
+
+.btn-icon.speaking {
+    background: var(--c-success);
+    border-color: var(--c-success);
+    color: #000;
+    box-shadow: 0 0 15px var(--c-success);
+    transform: scale(1.1);
+}
+
+@keyframes pulse-red {
+    0% { box-shadow: 0 0 0 0 rgba(255, 0, 60, 0.7); }
+    70% { box-shadow: 0 0 0 10px rgba(255, 0, 60, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(255, 0, 60, 0); }
+}

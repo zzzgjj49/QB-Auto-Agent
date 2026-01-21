@@ -21,11 +21,28 @@ export class SceneManager {
         this.isScanning = false;
         this.isGlitching = false;
         
+        // Mascot
+        this.mascotGroup = null;
+        this.mascotState = 'idle'; // idle, listening, speaking, thinking
+        this.mascotBaseScale = 1.0; // Base scale for animations
+        
         // Materials
         this.materials = {
             wireframe: new THREE.LineBasicMaterial({ color: 0x00f3ff, transparent: true, opacity: 0.3 }),
             engineNormal: new THREE.MeshBasicMaterial({ color: 0x00f3ff, wireframe: true, transparent: true, opacity: 0.8 }),
             engineAlert: new THREE.MeshBasicMaterial({ color: 0xff003c, wireframe: true, transparent: true, opacity: 0.9 }),
+            engineWarning: new THREE.MeshBasicMaterial({ color: 0xffaa00, wireframe: true, transparent: true, opacity: 0.9 }),
+            mascotBody: new THREE.MeshPhysicalMaterial({
+                color: 0xffffff,
+                metalness: 0.5,
+                roughness: 0.2,
+                clearcoat: 1.0,
+                transmission: 0.2,
+                opacity: 0.9,
+                transparent: true
+            }),
+            mascotGlow: new THREE.MeshBasicMaterial({ color: 0x00f3ff }),
+            mascotEye: new THREE.MeshBasicMaterial({ color: 0x000000 }),
             shell: new THREE.MeshPhysicalMaterial({ 
                 color: 0x111111, 
                 metalness: 0.9, 
@@ -50,6 +67,26 @@ export class SceneManager {
         window.addEventListener('click', (e) => this.onMouseClick(e));
 
         this.init();
+        this.highlightedPart = null; // Track current highlight
+        this.activeCode = null; // Track active DTC code
+        this.isExploded = false;
+        this.originalPositions = new Map(); // Store original positions for explode
+    }
+
+    getSceneTelemetry() {
+        const camPos = this.camera.position;
+        const target = this.controls.target;
+        
+        // List active AR labels
+        const activeLabels = this.arLabels.map(l => l.element.innerText.replace('Close', '').trim());
+
+        return {
+            camera_position: `x:${camPos.x.toFixed(1)}, y:${camPos.y.toFixed(1)}, z:${camPos.z.toFixed(1)}`,
+            camera_target: `x:${target.x.toFixed(1)}, y:${target.y.toFixed(1)}, z:${target.z.toFixed(1)}`,
+            highlighted_part: this.highlightedPart || "None",
+            visible_warnings: activeLabels.length > 0 ? activeLabels.join(", ") : "None",
+            is_glitching: this.isGlitching
+        };
     }
 
     init() {
@@ -60,7 +97,8 @@ export class SceneManager {
         // Renderer
         this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true, alpha: true });
         this.renderer.setSize(window.innerWidth, window.innerHeight);
-        this.renderer.setPixelRatio(window.devicePixelRatio);
+        // Optimization: Cap pixel ratio to 1.0 to prevent lag on high-DPI screens
+        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.0));
         this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
         this.renderer.toneMappingExposure = 1.2;
 
@@ -83,6 +121,9 @@ export class SceneManager {
         this.controls = new OrbitControls(this.camera, this.renderer.domElement);
         this.controls.enableDamping = true;
         this.controls.dampingFactor = 0.05;
+        
+        // Add Mascot
+        this.addMascot();
 
         // Animation Loop
         this.animate();
@@ -162,22 +203,39 @@ export class SceneManager {
     highlightMarker(code) {
         // Reset all markers first
         this.resetMarkers();
+        this.activeCode = code; // Store active code
 
         const target = this.sensorMarkers.find(m => m.userData.code === code);
         if (target) {
-            // Show marker
-            target.material.opacity = 0.8;
-            target.userData.glow.material.opacity = 1;
-            target.userData.text.material.opacity = 1;
-
-            // Pulse animation
-            gsap.to(target.userData.glow.scale, {
-                x: 0.8, y: 0.8,
-                duration: 0.5,
-                yoyo: true,
-                repeat: 5,
-                ease: "sine.inOut"
-            });
+            // HIDE marker if part is highlighted (user request: "don't need red button")
+            // But we keep it in data for logic.
+            // Actually, user said "I don't need to click this red button".
+            // So we can make it invisible OR just rely on mesh.
+            // Let's make it very subtle or invisible if mesh is found.
+            
+            // For now, let's keep it but make it smaller/less intrusive as requested.
+            // Or hide it completely if we are highlighting a mesh.
+            
+            if (this.highlightedPart) {
+                 // Mesh is highlighted, hide marker to reduce clutter
+                 target.material.opacity = 0;
+                 target.userData.glow.material.opacity = 0;
+                 target.userData.text.material.opacity = 0;
+            } else {
+                // Show marker as fallback
+                target.material.opacity = 0.8;
+                target.userData.glow.material.opacity = 1;
+                target.userData.text.material.opacity = 1;
+    
+                // Pulse animation
+                gsap.to(target.userData.glow.scale, {
+                    x: 0.8, y: 0.8,
+                    duration: 0.5,
+                    yoyo: true,
+                    repeat: 5,
+                    ease: "sine.inOut"
+                });
+            }
         }
     }
 
@@ -198,27 +256,59 @@ export class SceneManager {
 
         // Raycast
         this.raycaster.setFromCamera(this.mouse, this.camera);
-        const intersects = this.raycaster.intersectObjects(this.sensorMarkers);
+        
+        // 1. Check Sensors (Markers) - Keep for backward compatibility but prioritize meshes
+        const sensorIntersects = this.raycaster.intersectObjects(this.sensorMarkers);
+        
+        // 2. Check Car Meshes
+        // We only care about meshes in the car group
+        let carIntersects = [];
+        if (this.carGroup) {
+            carIntersects = this.raycaster.intersectObjects(this.carGroup.children, true); // Recursive
+        }
 
-        if (intersects.length > 0) {
-            const hit = intersects[0].object;
-            if (this.onSensorClickCallback) {
-                this.onSensorClickCallback(hit.userData.code);
+        // Logic: If highlighting, click on MESH triggers action. 
+        // If marker clicked, trigger action.
+        
+        if (carIntersects.length > 0) {
+            const hit = carIntersects[0].object;
+            // Check if this mesh matches the currently highlighted part
+            if (this.highlightedPart && hit.name && hit.name.includes(this.highlightedPart)) {
+                // Trigger same callback as marker
+                // We need to find the code associated with this part?
+                // Or just trigger a generic "Show Info" event.
+                // Since we don't store code on mesh, we rely on the app state or a new callback.
+                
+                // Dispatch a custom event for the App to handle
+                window.dispatchEvent(new CustomEvent('mesh-clicked', { detail: { meshName: hit.name } }));
+                
+                // Visual feedback
+                gsap.to(hit.scale, { x: 1.1, y: 1.1, z: 1.1, yoyo: true, repeat: 1, duration: 0.2 });
             }
-            
-            // Visual feedback
-            gsap.to(hit.scale, {
-                x: 2, y: 2, z: 2,
-                duration: 0.2,
-                yoyo: true,
-                repeat: 1
-            });
+        }
+
+        if (sensorIntersects.length > 0) {
+            const hit = sensorIntersects[0].object;
+            // Only trigger if visible (opacity > 0)
+            if (hit.material.opacity > 0.1) {
+                if (this.onSensorClickCallback) {
+                    this.onSensorClickCallback(hit.userData.code);
+                }
+                
+                // Visual feedback
+                gsap.to(hit.scale, {
+                    x: 2, y: 2, z: 2,
+                    duration: 0.2,
+                    yoyo: true,
+                    repeat: 1
+                });
+            }
         }
     }
 
     createARLabel(position, title, text, type = 'critical') {
-        // Remove old labels if we are focusing on a single one, 
-        // BUT for full scan we might want multiple. 
+        // Remove old labels to prevent clutter
+        this.clearARLabels();
         
         const labelDiv = document.createElement('div');
         labelDiv.className = `ar-label visible ${type}`; // Add type class
@@ -291,11 +381,17 @@ export class SceneManager {
             const x = (vector.x * .5 + .5) * window.innerWidth;
             const y = (-(vector.y * .5) + .5) * window.innerHeight;
 
+            // Offset upwards to avoid covering the mesh
+            const offsetY = -80; // Move up by 80px
+
             // Check if visible (in front of camera)
             if (vector.z < 1) {
                 lbl.element.style.display = 'block';
                 lbl.element.style.left = `${x}px`;
-                lbl.element.style.top = `${y}px`;
+                lbl.element.style.top = `${y + offsetY}px`; // Applied offset
+                
+                // Add a "leader line" effect (simulated with border-left or ::before in CSS)
+                // For now, simple position fix is enough to declutter.
             } else {
                 lbl.element.style.display = 'none';
             }
@@ -447,7 +543,211 @@ export class SceneManager {
         this.scene.add(this.scanBeam);
     }
 
+    addMascot() {
+        this.mascotGroup = new THREE.Group();
+        
+        // Body (Sphere)
+        const bodyGeo = new THREE.SphereGeometry(0.3, 32, 32);
+        const body = new THREE.Mesh(bodyGeo, this.materials.mascotBody);
+        this.mascotGroup.add(body);
+
+        // Face / Screen (Black plane)
+        const faceGeo = new THREE.SphereGeometry(0.26, 32, 32, 0, Math.PI * 2, 0, Math.PI * 0.35);
+        const face = new THREE.Mesh(faceGeo, this.materials.mascotEye);
+        face.rotation.x = -Math.PI / 2;
+        face.position.z = 0.05;
+        this.mascotGroup.add(face);
+
+        // Eyes (Glowing Spheres) - Made bigger and cuter
+        const eyeGeo = new THREE.CapsuleGeometry(0.08, 0.1, 4, 8); // Capsule for anime eyes
+        this.leftEye = new THREE.Mesh(eyeGeo, this.materials.mascotGlow.clone());
+        this.leftEye.rotation.z = Math.PI / 2;
+        this.leftEye.position.set(-0.12, 0.05, 0.25);
+        
+        this.rightEye = new THREE.Mesh(eyeGeo, this.materials.mascotGlow.clone());
+        this.rightEye.rotation.z = Math.PI / 2;
+        this.rightEye.position.set(0.12, 0.05, 0.25);
+        
+        this.mascotGroup.add(this.leftEye, this.rightEye);
+
+        // Cat Ears (Rounded Cones)
+        const earGeo = new THREE.ConeGeometry(0.08, 0.25, 16);
+        const leftEar = new THREE.Mesh(earGeo, this.materials.mascotBody);
+        leftEar.position.set(-0.2, 0.25, 0);
+        leftEar.rotation.z = Math.PI / 6;
+        
+        const rightEar = new THREE.Mesh(earGeo, this.materials.mascotBody);
+        rightEar.position.set(0.2, 0.25, 0);
+        rightEar.rotation.z = -Math.PI / 6;
+        
+        this.mascotGroup.add(leftEar, rightEar);
+
+        // Halo Ring
+        const ringGeo = new THREE.TorusGeometry(0.4, 0.01, 16, 64);
+        this.mascotRing = new THREE.Mesh(ringGeo, this.materials.mascotGlow);
+        this.mascotRing.rotation.x = Math.PI / 2;
+        this.mascotGroup.add(this.mascotRing);
+
+        // Initial Position (Floating on left)
+        this.mascotGroup.position.set(-1.5, 2, 4);
+        this.mascotGroup.rotation.y = Math.PI / 4;
+        
+        this.scene.add(this.mascotGroup);
+    }
+
+    setMascotState(state) {
+        this.mascotState = state;
+        
+        // Reset colors
+        const eyeColor = state === 'thinking' ? 0xffaa00 : (state === 'speaking' ? 0x00ff00 : 0x00f3ff);
+        this.leftEye.material.color.setHex(eyeColor);
+        this.rightEye.material.color.setHex(eyeColor);
+        this.mascotRing.material.color.setHex(eyeColor);
+
+        // Animation triggers
+        gsap.killTweensOf(this.mascotGroup.scale);
+        
+        if (state === 'speaking') {
+             // Pulse and Bounce while speaking
+             gsap.to(this.mascotGroup.scale, { 
+                 x: this.mascotBaseScale * 1.3, 
+                 y: this.mascotBaseScale * 1.3, 
+                 z: this.mascotBaseScale * 1.3, 
+                 yoyo: true, repeat: -1, duration: 0.15,
+                 ease: "sine.inOut"
+             });
+             // Add bounce
+             gsap.to(this.mascotGroup.position, {
+                 y: "+=0.2",
+                 yoyo: true, repeat: -1, duration: 0.3,
+                 ease: "power1.inOut"
+             });
+        } else if (state === 'listening') {
+             // Zoom In (Big!)
+             gsap.to(this.mascotGroup.scale, {
+                 x: this.mascotBaseScale * 1.8, // Even bigger
+                 y: this.mascotBaseScale * 1.8,
+                 z: this.mascotBaseScale * 1.8,
+                 duration: 0.5,
+                 ease: "back.out(1.7)"
+             });
+             // Tilt forward slightly
+             gsap.to(this.mascotGroup.rotation, { x: 0.2, duration: 0.5 });
+        } else {
+             // Idle
+             gsap.to(this.mascotGroup.scale, { 
+                 x: this.mascotBaseScale, 
+                 y: this.mascotBaseScale, 
+                 z: this.mascotBaseScale, 
+                 duration: 0.5 
+             });
+             gsap.to(this.mascotGroup.rotation, { x: 0, duration: 0.5 });
+        }
+    }
+
     // --- Actions ---
+
+    toggleCinematicMode() {
+        if (this.controls.autoRotate) {
+            this.controls.autoRotate = false;
+            this.resetCamera();
+        } else {
+            this.controls.autoRotate = true;
+            this.controls.autoRotateSpeed = 2.0; // Slower than scan
+            
+            // Dynamic Camera Angle
+            gsap.to(this.camera.position, {
+                y: 2,
+                z: 8,
+                duration: 2,
+                ease: "power2.inOut"
+            });
+        }
+    }
+
+    toggleExplodeView() {
+        if (!this.carGroup) return;
+
+        this.isExploded = !this.isExploded;
+        
+        const duration = 1.5; // Slower, more majestic
+        const carCenter = new THREE.Vector3(0, 0.5, 0); // Approximate center of car
+
+        if (this.isExploded) {
+            // Explode
+            this.carGroup.traverse((child) => {
+                if (child.isMesh) {
+                    // Store original if not stored
+                    if (!this.originalPositions.has(child.uuid)) {
+                        this.originalPositions.set(child.uuid, child.position.clone());
+                    }
+
+                    // Determine "Visual Center" of the Part in Local Space
+                    let partCenter = child.position.clone();
+                    // If pivot is at origin, use bounding box center to guess where the part actually is
+                    if (partCenter.lengthSq() < 0.01 && child.geometry) {
+                        child.geometry.computeBoundingBox();
+                        const center = new THREE.Vector3();
+                        child.geometry.boundingBox.getCenter(center);
+                        partCenter.copy(center);
+                    }
+
+                    // Calculate Explosion Vector (From Car Center -> Part Center)
+                    let dir = new THREE.Vector3().subVectors(partCenter, carCenter).normalize();
+                    let distance = 2.0; // Default expansion distance
+
+                    // Smart Direction based on Name (Heuristics)
+                    const name = child.name.toLowerCase();
+                    if (name.includes('door')) {
+                        dir.set(Math.sign(partCenter.x), 0, 0); // Pure Sideways
+                        distance = 2.5;
+                    } else if (name.includes('hood') || name.includes('bonnet')) {
+                        dir.set(0, 1, 1).normalize(); // Up and Forward
+                        distance = 2.0;
+                    } else if (name.includes('trunk') || name.includes('boot')) {
+                        dir.set(0, 1, -1).normalize(); // Up and Back
+                        distance = 2.0;
+                    } else if (name.includes('roof')) {
+                        dir.set(0, 1, 0); // Pure Up
+                        distance = 3.0; // High up
+                    } else if (name.includes('wheel') || name.includes('tire')) {
+                        dir.set(Math.sign(partCenter.x), -0.2, 0).normalize(); // Outwards
+                        distance = 1.8;
+                    } else if (name.includes('window') || name.includes('glass')) {
+                         // Windows follow their parent parts roughly, but push out a bit more
+                         distance = 2.2;
+                    }
+
+                    // Apply Expansion
+                    // Target = OriginalPosition + (Direction * Distance)
+                    const original = this.originalPositions.get(child.uuid);
+                    const target = original.clone().add(dir.multiplyScalar(distance));
+                    
+                    gsap.to(child.position, {
+                        x: target.x,
+                        y: target.y,
+                        z: target.z,
+                        duration: duration,
+                        ease: "power3.out"
+                    });
+                }
+            });
+        } else {
+            // Implode (Reset)
+            this.carGroup.traverse((child) => {
+                if (child.isMesh && this.originalPositions.has(child.uuid)) {
+                    const original = this.originalPositions.get(child.uuid);
+                    gsap.to(child.position, {
+                        x: original.x,
+                        y: original.y,
+                        z: original.z,
+                        duration: duration,
+                        ease: "power3.inOut"
+                    });
+                }
+            });
+        }
+    }
 
     startScanning() {
         this.isScanning = true;
@@ -466,45 +766,134 @@ export class SceneManager {
         });
     }
 
+    highlightPartMesh(partName, targetPosition = null, severity = 'critical') {
+        if (!this.carGroup) return;
+
+        // Reset previous highlights
+        this.resolveGlitch(); 
+
+        // Choose material based on severity
+        const alertMaterial = severity === 'warning' ? this.materials.engineWarning : this.materials.engineAlert;
+        
+        let found = false;
+        let bestCandidate = null;
+        let minDistance = Infinity;
+
+        // 1. Try Name Matching
+        this.carGroup.traverse((child) => {
+            if (child.isMesh && child.name) {
+                if (child.name.toLowerCase().includes(partName.toLowerCase())) {
+                    if (targetPosition) {
+                        const meshPos = new THREE.Vector3();
+                        child.getWorldPosition(meshPos);
+                        const dist = meshPos.distanceTo(targetPosition);
+                        if (dist < minDistance) {
+                            minDistance = dist;
+                            bestCandidate = child;
+                        }
+                    } else {
+                        // Highlight all matches if no position
+                        this.applyHighlightEffect(child, alertMaterial);
+                        found = true;
+                    }
+                }
+            }
+        });
+
+        if (targetPosition && bestCandidate) {
+            this.applyHighlightEffect(bestCandidate, alertMaterial);
+            found = true;
+            this.highlightedPart = bestCandidate.name;
+        }
+
+        // 2. Fallback: Proximity Search (If name match failed but we have a position)
+        if (!found && targetPosition) {
+            console.log(`[Highlight] Name '${partName}' not found. Searching by proximity...`);
+            minDistance = Infinity;
+            bestCandidate = null;
+
+            this.carGroup.traverse((child) => {
+                if (child.isMesh) {
+                    const meshPos = new THREE.Vector3();
+                    child.getWorldPosition(meshPos);
+                    const dist = meshPos.distanceTo(targetPosition);
+                    
+                    // Threshold: 1.5 units radius
+                    if (dist < 1.5 && dist < minDistance) {
+                        minDistance = dist;
+                        bestCandidate = child;
+                    }
+                }
+            });
+
+            if (bestCandidate) {
+                console.log(`[Highlight] Found proxy mesh: ${bestCandidate.name}`);
+                this.applyHighlightEffect(bestCandidate, alertMaterial);
+                found = true;
+                this.highlightedPart = bestCandidate.name;
+            }
+        }
+
+        if (!found) {
+            console.warn(`Could not find mesh for part: ${partName}`);
+        }
+    }
+
+    applyHighlightEffect(mesh, material) {
+        mesh.material = material.clone();
+        gsap.to(mesh.scale, {
+            x: 1.05, y: 1.05, z: 1.05,
+            yoyo: true, repeat: 5, duration: 0.5
+        });
+    }
+
+    // Re-adding triggerGlitch for backward compatibility and fallback
     triggerGlitch() {
         this.isGlitching = true;
-        // Change engine color to Red
-        this.engineGroup.traverse((child) => {
-            if (child.isMesh) child.material = this.materials.engineAlert;
-        });
-
-        // Shake effect on engine
-        gsap.to(this.engineGroup.position, {
-            x: "+=0.05",
-            y: "+=0.05",
-            yoyo: true,
-            repeat: -1,
-            duration: 0.05
-        });
-
-        // Expand engine slightly to look unstable
-        gsap.to(this.engineGroup.scale, {
-            x: 1.2, y: 1.2, z: 1.2,
-            yoyo: true,
-            repeat: -1,
-            duration: 0.5
-        });
+        if (this.engineGroup) {
+            this.engineGroup.traverse((child) => {
+                if (child.isMesh) child.material = this.materials.engineAlert;
+            });
+            
+            gsap.to(this.engineGroup.position, {
+                x: "+=0.05", y: "+=0.05", yoyo: true, repeat: -1, duration: 0.05
+            });
+        }
     }
 
     resolveGlitch() {
         this.isGlitching = false;
+        this.highlightedPart = null;
+        this.activeCode = null;
+        
+        // Reset Car Materials
+        if (this.carGroup) {
+            this.carGroup.traverse((child) => {
+                if (child.isMesh) {
+                    // Reset to original material (shell or wireframe)
+                    // Simplified: just reset all to shell for now, logic can be improved
+                    if (child.name && (child.name.includes("Window") || child.name.includes("Glass"))) {
+                         // Keep windows distinct if possible, but for now shell is fine
+                    }
+                    child.material = this.materials.shell;
+                    
+                    // Kill tweens
+                    gsap.killTweensOf(child.scale);
+                    child.scale.set(1,1,1); // Reset scale
+                }
+            });
+        }
+
         // Kill all tweens on engine
-        gsap.killTweensOf(this.engineGroup.position);
-        gsap.killTweensOf(this.engineGroup.scale);
-
-        // Reset transform
-        this.engineGroup.position.set(1.5, 0.8, 0);
-        this.engineGroup.scale.set(1, 1, 1);
-
-        // Restore color
-        this.engineGroup.traverse((child) => {
-            if (child.isMesh) child.material = this.materials.engineNormal;
-        });
+        if (this.engineGroup) {
+            gsap.killTweensOf(this.engineGroup.position);
+            gsap.killTweensOf(this.engineGroup.scale);
+            this.engineGroup.position.set(2.0, 0.8, 0); // Restore original pos
+            this.engineGroup.scale.set(1, 1, 1);
+            this.engineGroup.traverse((child) => {
+                if (child.isMesh) child.material = this.materials.engineNormal;
+            });
+        }
 
         // Clear AR Labels and Markers
         this.clearARLabels();
@@ -512,8 +901,34 @@ export class SceneManager {
     }
 
     focusPart(partName) {
+        if (!this.carGroup) return;
+        
+        // Handle special aliases
         if (partName === 'engine') {
             this.focusOnEngine();
+            return;
+        }
+
+        // Try to find mesh by name and focus on it
+        let targetMesh = null;
+        let minDistance = Infinity;
+        
+        this.carGroup.traverse((child) => {
+            if (child.isMesh && child.name && child.name.toLowerCase().includes(partName.toLowerCase())) {
+                targetMesh = child;
+            }
+        });
+
+        if (targetMesh) {
+            // Calculate world position
+            const pos = new THREE.Vector3();
+            targetMesh.getWorldPosition(pos);
+            
+            // Focus camera
+            this.focusOnPosition(pos);
+            
+            // Highlight it
+            this.highlightPartMesh(partName, pos);
         } else {
             console.warn("Unknown part:", partName);
         }
@@ -542,6 +957,35 @@ export class SceneManager {
             duration: 1.5,
             ease: "power2.out"
         });
+    }
+
+    resetView() {
+        console.log("Resetting view...");
+        
+        // 1. Clear Glitch / Highlights / AR Labels
+        this.resolveGlitch();
+        
+        // 2. Reset Exploded View if active
+        if (this.isExploded) {
+            this.toggleExplodeView();
+        }
+        
+        // 3. Reset Camera
+        this.resetCamera();
+        
+        // 4. Reset Mascot
+        this.setMascotState('idle');
+        
+        // 5. Stop any scanning effects
+        this.stopScanningEffect();
+        
+        // 6. Stop Cinematic Mode if active
+        if (this.controls && this.controls.autoRotate) {
+            this.controls.autoRotate = false;
+        }
+
+        // 7. Reset Background
+        this.scene.background = new THREE.Color(0x030507);
     }
 
     resetCamera() {
@@ -606,6 +1050,18 @@ export class SceneManager {
                     child.position.x += (Math.random() - 0.5) * 0.02;
                 }
             });
+        }
+        
+        // Mascot Animation
+        if (this.mascotGroup) {
+            // Idle float
+            this.mascotGroup.position.y = 2 + Math.sin(Date.now() * 0.002) * 0.1;
+            
+            // Ring rotation
+            if (this.mascotRing) {
+                this.mascotRing.rotation.z += 0.02;
+                this.mascotRing.rotation.y = Math.sin(Date.now() * 0.001) * 0.2;
+            }
         }
 
         this.updateARLabels();
