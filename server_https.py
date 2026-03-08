@@ -20,10 +20,9 @@ httpd = http.server.HTTPServer(server_address, http.server.SimpleHTTPRequestHand
 
 # Wrap the socket with SSL
 try:
-    httpd.socket = ssl.wrap_socket(httpd.socket,
-                                   server_side=True,
-                                   certfile='server.pem',
-                                   ssl_version=ssl.PROTOCOL_TLS)
+    context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    context.load_cert_chain(certfile='server.pem')
+    httpd.socket = context.wrap_socket(httpd.socket, server_side=True)
     httpd.serve_forever()
 except FileNotFoundError:
     print("\n[ERROR] 'server.pem' not found!")

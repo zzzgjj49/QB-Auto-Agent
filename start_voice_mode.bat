@@ -21,5 +21,5 @@ echo   Note: You will see a "Not Secure" warning.
 echo   Click "Advanced" -> "Continue to localhost".
 echo ========================================================
 echo.
-python server_https.py
+py server_https.py
 pause

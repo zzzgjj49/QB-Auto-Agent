@@ -1,14 +1,16 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MeltingHack V2.0 // Neural Link</title>
-    <link rel="stylesheet" href="css/style.css?v=5">
-    <!-- Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;600;700&family=Share+Tech+Mono&family=Noto+Sans+JP:wght@400;700&family=Orbitron:wght@500;700;900&display=swap" rel="stylesheet">
-    <!-- FontAwesome for Icons -->
+    <title>QB Full-Lifecycle Automotive Intelligence Platform</title>
+    <link rel="stylesheet" href="css/enterprise.css">
+    <!-- Fonts: Inter & JetBrains Mono -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <!-- FontAwesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
     <!-- Import Map -->
     <script type="importmap">
@@ -22,92 +24,457 @@
     </script>
 </head>
 <body>
-    <!-- 3D Canvas Layer -->
+    <!-- 3D Canvas Layer (Always Background) -->
     <canvas id="canvas-webgl"></canvas>
 
     <!-- UI Layer -->
     <div id="app-ui">
-        <!-- 1. Header: System Status -->
+        
+        <!-- 1. Header -->
         <header class="sys-header">
             <div class="brand">
-                <i class="fa-solid fa-cube"></i> MELTING<span class="highlight">HACK</span> <span class="version">V2.0</span>
+                <i class="fa-solid fa-shield-heart"></i> QB <span style="font-weight:400; opacity:0.7">EDGE DIAGNOSTICS</span>
+                <span class="brand-tag">Edge AI</span>
             </div>
             <div class="sys-info">
-                <div class="info-item"><i class="fa-solid fa-server"></i> <span id="server-status">CONNECTED</span></div>
-                <div class="info-item"><i class="fa-regular fa-clock"></i> <span id="sys-time">00:00:00</span></div>
+                <div class="info-item"><i class="fa-solid fa-globe"></i> <span>Region: East China · On-Prem Deployment</span></div>
+                <div class="info-item"><i class="fa-solid fa-server"></i> <span id="server-status" style="color:var(--c-success)">Online</span></div>
+                <div class="info-item"><i class="fa-regular fa-clock"></i> <span id="sys-time">--:--:--</span></div>
             </div>
         </header>
 
-        <!-- 2. Sidebar: Navigation -->
+        <!-- 2. Sidebar -->
         <nav class="sys-sidebar">
-            <button class="nav-item active" data-view="dashboard" title="ダッシュボード">
-                <i class="fa-solid fa-gauge-high"></i>
+            <div class="nav-label">Scenario A · Production AI Quality Inspector</div>
+            <button class="nav-item active" id="nav-qc">
+                <i class="fa-solid fa-conveyor-belt"></i> Production QC Workbench
             </button>
-            <button class="nav-item" data-view="ai" title="AI診断">
-                <i class="fa-solid fa-microchip"></i>
+            <button class="nav-item" id="nav-scan">
+                <i class="fa-solid fa-radar"></i> Edge Full-System Inspection
             </button>
-            <button class="nav-item" data-view="3d" title="3Dビュー">
+
+            <div class="nav-label nav-label-ai">Scenario B · After-Sales Predictive Maintenance Copilot</div>
+            <button class="nav-item nav-item-rich" id="nav-twin">
                 <i class="fa-solid fa-cube"></i>
+                <span class="nav-copy">
+                    <span class="nav-title">Fault Localization Twin</span>
+                    <span class="nav-desc">3D Root-Cause Localization & Risk Alerts</span>
+                </span>
+                <span class="nav-tag">AI</span>
             </button>
-            <button class="nav-item" data-view="scan" title="完全診断">
-                <i class="fa-solid fa-magnifying-glass-chart"></i>
+            <button class="nav-item nav-item-rich" id="nav-history">
+                <i class="fa-solid fa-clipboard-check"></i>
+                <span class="nav-copy">
+                    <span class="nav-title">Maintenance Closed-Loop Traceability</span>
+                    <span class="nav-desc">Corrective Work Orders, Re-Inspection & Archiving</span>
+                </span>
+                <span class="nav-tag">Loop</span>
             </button>
-            <div class="spacer"></div>
-            <button class="nav-item" id="btn-settings" title="設定">
-                <i class="fa-solid fa-gear"></i>
+            
+            <div class="nav-label">Operations & Asset Views</div>
+            <button class="nav-item" id="nav-dashboard">
+                <i class="fa-solid fa-chart-line"></i> QC Operations Dashboard
+            </button>
+            <button class="nav-item" id="nav-vehicles">
+                <i class="fa-solid fa-table-list"></i> In-Inspection Vehicle Pool
             </button>
         </nav>
 
-        <!-- 3. Main Content Area (Dynamic) -->
+        <!-- 3. Main Content (Center - Transparent for 3D) -->
         <main id="main-content">
-            <!-- Content will be injected by UIManager -->
-        </main>
-
-        <!-- 4. Notifications / Logs Overlay -->
-        <div id="notification-area"></div>
-
-        <!-- Loading Screen -->
-        <div id="loading-screen">
-            <div class="loader-wrap">
-                <div class="hex-spinner"></div>
-                <div class="loading-text" data-text="SYSTEM INITIALIZING...">SYSTEM INITIALIZING...</div>
-                <div class="loading-progress">0%</div>
-            </div>
-        </div>
-
-        <!-- Repair Button (Floating) -->
-        <button id="btn-repair-complete" class="cyber-btn-floating hidden">
-            <i class="fa-solid fa-rotate-left"></i> システム正常化
-        </button>
-
-        <!-- Alert Modal -->
-        <div id="alert-modal" class="hidden">
-            <div class="alert-content">
-                <div class="btn-close-modal" id="btn-close-alert"><i class="fa-solid fa-xmark"></i></div>
-                <div class="alert-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
-                <h2 class="alert-title">WARNING</h2>
-                <p class="alert-desc">Description text here</p>
-                <button class="cyber-btn" id="btn-resolve">
-                    <span class="btn-text">DIAGNOSE & RESOLVE</span>
-                    <span class="btn-glitch"></span>
-                </button>
-            </div>
-        </div>
-        <!-- Voice Input Modal -->
-        <div id="voice-input-modal" class="hidden">
-            <div class="voice-modal-content">
-                <div class="btn-close-modal" id="btn-close-voice"><i class="fa-solid fa-xmark"></i></div>
-                <h3 class="voice-modal-title"><i class="fa-solid fa-microphone"></i> 音声入力シミュレーション</h3>
-                <p class="voice-modal-desc">ASRネットワーク接続不可のため、テキストで代替入力してください。</p>
-                <input type="text" id="voice-sim-input" placeholder="例: エンジンの調子が悪い..." autocomplete="off">
-                <div class="voice-modal-actions">
-                    <button class="cyber-btn" id="btn-voice-sim-send">送信</button>
+            <!-- 3D Viewport is visible through here -->
+            
+            <!-- View: Dashboard (Fleet Overview) -->
+            <div id="view-dashboard" class="view-overlay hidden">
+                <div class="view-header">
+                    <h2>Full-Lifecycle Operations Overview</h2>
+                    <div class="view-actions">
+                        <button class="btn btn-primary"><i class="fa-solid fa-download"></i> Export Report</button>
+                    </div>
+                </div>
+                <div class="dashboard-grid">
+                    <div class="card">
+                        <div class="stat-value ok" id="stat-online-rate">98.5%</div>
+                        <div class="stat-label">Service Uptime</div>
+                    </div>
+                    <div class="card">
+                        <div class="stat-value" id="stat-total-vehicles">1,240</div>
+                        <div class="stat-label">Connected Vehicles</div>
+                    </div>
+                    <div class="card">
+                        <div class="stat-value warn" id="stat-pending-repairs">12</div>
+                        <div class="stat-label">Pending Risks</div>
+                    </div>
+                    <div class="card">
+                        <div class="stat-value" id="stat-avg-health">--</div>
+                        <div class="stat-label">Average Health Score</div>
+                    </div>
+                </div>
+                <div class="card" style="margin-top: 20px; background: rgba(30, 41, 59, 0.8);">
+                    <div style="display: flex; gap: 20px;">
+                        <div style="flex: 1; height: 300px;">
+                            <canvas id="chart-fleet-status"></canvas>
+                        </div>
+                        <div style="flex: 1.5; height: 300px;">
+                            <canvas id="chart-cost-analysis"></canvas>
+                        </div>
+                        <div style="flex: 1.5; height: 300px;">
+                            <canvas id="chart-fault-trends"></canvas>
+                        </div>
+                    </div>
                 </div>
             </div>
-        </div>
+
+            <!-- View: Vehicle List -->
+            <div id="view-vehicles" class="view-overlay hidden">
+                <div class="view-header">
+                    <h2>Vehicle Asset Pool</h2>
+                    <input type="text" placeholder="Search VIN / Plate..." style="width: 200px;">
+                </div>
+                <div class="data-table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Status</th>
+                                <th>Model</th>
+                                <th>VIN</th>
+                                <th>Location</th>
+                                <th>Mileage (km)</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><span class="qc-badge pass">Online</span></td>
+                                <td>Volvo S90</td>
+                                <td>L8923...9231</td>
+                                <td>Shanghai Jing'an District</td>
+                                <td>12,405</td>
+                                <td><button class="btn btn-sm">Details</button></td>
+                            </tr>
+                            <tr>
+                                <td><span class="qc-badge fail">Fault</span></td>
+                                <td>Volvo XC60</td>
+                                <td>L8923...5521</td>
+                                <td>Hangzhou Binjiang District</td>
+                                <td>45,120</td>
+                                <td><button class="btn btn-sm">Diagnose</button></td>
+                            </tr>
+                            <tr>
+                                <td><span class="qc-badge pass">Online</span></td>
+                                <td>Volvo V90</td>
+                                <td>L8923...1102</td>
+                                <td>Suzhou Yuhang District</td>
+                                <td>8,900</td>
+                                <td><button class="btn btn-sm">Details</button></td>
+                            </tr>
+                             <!-- Mock Data -->
+                             <tr><td><span class="qc-badge pass">Online</span></td><td>Volvo S90</td><td>L8923...3312</td><td>Nanjing</td><td>22,100</td><td><button class="btn btn-sm">Details</button></td></tr>
+                             <tr><td><span class="qc-badge pass">Online</span></td><td>Volvo XC90</td><td>L8923...8821</td><td>Shanghai</td><td>5,600</td><td><button class="btn btn-sm">Details</button></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- View: Maintenance Logs -->
+            <div id="view-history" class="view-overlay hidden">
+                <div class="view-header">
+                    <h2>Diagnosis & Maintenance Closed-Loop Records</h2>
+                </div>
+                <div class="data-table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Work Order</th>
+                                <th>Date</th>
+                                <th>Vehicle</th>
+                                <th>DTC Code</th>
+                                <th>Maintenance Action</th>
+                                <th>Cost (CNY)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>#WO-2024-001</td>
+                                <td>2024-03-01</td>
+                                <td>Volvo S90</td>
+                                <td><span style="color:var(--c-danger)">P0300</span></td>
+                                <td>Replace Spark Plugs x4</td>
+                                <td>1,200</td>
+                            </tr>
+                            <tr>
+                                <td>#WO-2024-002</td>
+                                <td>2024-02-28</td>
+                                <td>Volvo XC60</td>
+                                <td><span style="color:var(--c-warning)">P0106</span></td>
+                                <td>Clean MAP Sensor</td>
+                                <td>450</td>
+                            </tr>
+                            <tr>
+                                <td>#WO-2024-003</td>
+                                <td>2024-02-15</td>
+                                <td>Volvo V90</td>
+                                <td><span style="color:var(--c-warning)">TPMS_LF</span></td>
+                                <td>Tire Inflation Calibration</td>
+                                <td>0</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- View: AI Full Scan -->
+            <div id="view-scan" class="view-overlay hidden">
+                <div class="view-header">
+                    <h2>Edge AI Proactive Inspection Center</h2>
+                    <div class="view-actions" style="display: flex; gap: 10px;">
+                        <button class="btn btn-primary" id="btn-scan-start">
+                            <i class="fa-solid fa-radar"></i> Start Edge Inspection
+                        </button>
+                    </div>
+                </div>
+                <div style="display: grid; grid-template-columns: 320px 1fr; gap: 20px;">
+                    <div class="card" style="padding: 20px;">
+                        <div style="font-size: 12px; color: var(--c-text-muted); margin-bottom: 8px;">Current Status</div>
+                        <div id="scan-status-text" style="font-size: 18px; font-weight: 700; color: #fff; margin-bottom: 12px;">Standby</div>
+                        <div id="scan-status-meta" style="font-size: 12px; color: var(--c-text-muted);">Scheduled proactive checks detect risks before failures occur.</div>
+                        <div style="margin-top: 20px; border-top: 1px solid var(--border-light); padding-top: 12px;">
+                            <div style="font-size: 12px; color: var(--c-text-muted); margin-bottom: 6px;">System Health</div>
+                            <div id="scan-score" style="font-family: var(--f-mono); font-size: 34px; font-weight: 700; color: #94a3b8;">-- / 100</div>
+                        </div>
+                    </div>
+                    <div class="card" style="padding: 20px;">
+                        <div style="font-size: 14px; font-weight: 600; color: #fff; margin-bottom: 10px;">Inspection Summary</div>
+                        <div id="scan-summary" style="font-size: 13px; color: var(--c-text-muted); margin-bottom: 15px;">No inspection result yet.</div>
+                        <div id="scan-issues" style="display: flex; flex-direction: column; gap: 10px;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- View: Diagnostic Twin (Interactive HUD) -->
+            <div id="view-twin" class="hidden" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;">
+                <!-- Left Panel: Real-time Monitor -->
+                <div class="twin-panel left" style="position: absolute; top: 20px; left: 20px; width: 280px; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(12px); border: 1px solid var(--border-light); border-radius: 12px; padding: 20px; pointer-events: auto; display: flex; flex-direction: column; gap: 20px;">
+                    <div class="panel-header" style="border-bottom: 1px solid var(--border-light); padding-bottom: 10px;">
+                        <h2 style="font-size: 16px; font-weight: 700; color: #fff; margin: 0;"><i class="fa-solid fa-gauge-high"></i> Real-Time Operating Monitor</h2>
+                        <div style="font-size: 11px; color: var(--c-success); margin-top: 4px;">● Streaming data feed (50ms)</div>
+                    </div>
+                    
+                    <!-- Gauges Row -->
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div style="text-align: center; position: relative;">
+                            <canvas id="gauge-speed" width="100" height="100"></canvas>
+                            <div style="position: absolute; top: 60%; left: 50%; transform: translate(-50%, -50%); text-align: center;">
+                                <div id="val-speed" style="font-size: 24px; font-weight: 700; color: #fff; line-height: 1;">0</div>
+                                <div style="font-size: 10px; color: var(--c-text-muted);">km/h</div>
+                            </div>
+                        </div>
+                        <div style="text-align: center; position: relative;">
+                            <canvas id="gauge-rpm" width="100" height="100"></canvas>
+                            <div style="position: absolute; top: 60%; left: 50%; transform: translate(-50%, -50%); text-align: center;">
+                                <div id="val-rpm" style="font-size: 24px; font-weight: 700; color: #fff; line-height: 1;">0</div>
+                                <div style="font-size: 10px; color: var(--c-text-muted);">rpm</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- System Status List -->
+                    <div class="sys-status-list">
+                        <div class="status-item" style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.05);">
+                            <span style="font-size: 12px; color: var(--c-text-muted);"><i class="fa-solid fa-car-battery"></i> Battery Voltage</span>
+                            <span id="val-voltage" style="font-size: 12px; color: #fff; font-family: var(--f-mono);">12.4 V</span>
+                        </div>
+                        <div class="status-item" style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.05);">
+                            <span style="font-size: 12px; color: var(--c-text-muted);"><i class="fa-solid fa-temperature-half"></i> Coolant Temp</span>
+                            <span id="val-temp" style="font-size: 12px; color: #fff; font-family: var(--f-mono);">90 °C</span>
+                        </div>
+                        <div class="status-item" style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.05);">
+                            <span style="font-size: 12px; color: var(--c-text-muted);"><i class="fa-solid fa-oil-can"></i> Oil Pressure</span>
+                            <span id="val-oil" style="font-size: 12px; color: #fff; font-family: var(--f-mono);">340 kPa</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bottom Panel: Fault Scanner -->
+                <div class="twin-panel bottom" style="position: absolute; bottom: 20px; left: 20px; right: 20px; height: 180px; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(12px); border: 1px solid var(--border-light); border-radius: 12px; padding: 15px 20px; pointer-events: auto; display: flex; gap: 20px;">
+                    <!-- Scanner Controls -->
+                    <div style="width: 200px; display: flex; flex-direction: column; justify-content: center; border-right: 1px solid var(--border-light); padding-right: 20px;">
+                        <h3 style="font-size: 14px; color: #fff; margin-bottom: 10px;"><i class="fa-solid fa-microchip"></i> Fault Diagnostics</h3>
+                        <button id="btn-twin-scan" class="btn btn-primary" style="width: 100%; margin-bottom: 8px;">
+                            <i class="fa-solid fa-rotate"></i> Full Vehicle Scan
+                        </button>
+                        <button id="btn-twin-clear" class="btn" style="width: 100%;">
+                            <i class="fa-solid fa-trash-can"></i> Clear Fault Codes
+                        </button>
+                    </div>
+
+                    <!-- Fault List -->
+                    <div style="flex: 1; overflow-y: auto;">
+                        <table class="data-table" style="font-size: 12px;">
+                            <thead>
+                                <tr>
+                                    <th style="padding: 8px;">Status</th>
+                                    <th style="padding: 8px;">DTC</th>
+                                    <th style="padding: 8px;">Description</th>
+                                    <th style="padding: 8px;">Module</th>
+                                    <th style="padding: 8px;">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="twin-fault-list">
+                                <!-- Mock Data -->
+                                <tr id="mock-fault-1">
+                                    <td style="padding: 8px;"><span class="qc-badge fail">Active</span></td>
+                                    <td style="padding: 8px; font-family: var(--f-mono); color: var(--c-danger);">P0300</td>
+                                    <td style="padding: 8px;">Random/Multiple Cylinder Misfire Detected</td>
+                                    <td style="padding: 8px;">ECM (Engine)</td>
+                                    <td style="padding: 8px;"><button class="btn-sm btn-locate" data-part="Engine">Locate</button></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Risk Prediction Chart -->
+                    <div style="width: 250px; border-left: 1px solid var(--border-light); padding-left: 20px;">
+                         <h3 style="font-size: 12px; color: var(--c-text-muted); margin-bottom: 8px;">AI Risk Forecast (72h)</h3>
+                         <div style="height: 120px;">
+                             <canvas id="chart-risk-pred"></canvas>
+                         </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- View: QC Inspection (Interactive Overlay) -->
+            <div id="view-qc" class="hidden" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;">
+                <!-- QC Sidebar Panel -->
+                <div class="qc-panel" style="position: absolute; top: 80px; left: 20px; width: 320px; background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(12px); border: 1px solid var(--border-light); border-radius: 12px; padding: 20px; pointer-events: auto; display: flex; flex-direction: column; max-height: calc(100vh - 120px);">
+                    
+                    <div class="panel-header" style="border-bottom: 1px solid var(--border-light); padding-bottom: 15px; margin-bottom: 15px;">
+                        <h2 style="font-size: 18px; font-weight: 700; color: #fff; margin: 0;"><i class="fa-solid fa-clipboard-check"></i> Scenario A: Production AI Quality Inspector</h2>
+                        <div style="font-size: 12px; color: var(--c-text-muted); margin-top: 5px;">Target: reduce manual inspection staffing from 100 to 1-2 final reviewers</div>
+                    </div>
+
+                    <!-- QC Controls -->
+                    <div class="qc-controls" style="display: flex; gap: 10px; margin-bottom: 20px;">
+                        <button id="btn-qc-auto" class="btn btn-primary" style="flex: 1;"><i class="fa-solid fa-play"></i> Auto Inspection</button>
+                        <button id="btn-qc-manual" class="btn" style="flex: 1; background: rgba(255,255,255,0.1);"><i class="fa-solid fa-hand-pointer"></i> Manual Mode</button>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr auto auto; gap: 8px; margin-bottom: 14px;">
+                        <select id="qc-filter" style="background: rgba(255,255,255,0.08); color: #fff; border: 1px solid var(--border-light); border-radius: 8px; padding: 8px;">
+                            <option value="all">All Items</option>
+                            <option value="pending">Pending</option>
+                            <option value="active">In Progress</option>
+                            <option value="pass">Pass</option>
+                            <option value="fail">Defect</option>
+                        </select>
+                        <button id="btn-qc-restart" class="btn btn-sm" style="padding: 0 10px;">
+                            <i class="fa-solid fa-rotate-right"></i> Rerun
+                        </button>
+                        <button id="btn-qc-export" class="btn btn-sm" style="padding: 0 10px;">
+                            <i class="fa-solid fa-file-arrow-down"></i> Export
+                        </button>
+                    </div>
+                    <div style="background: rgba(2,6,23,0.6); border: 1px solid var(--border-light); border-radius: 10px; padding: 10px; margin-bottom: 14px;">
+                        <div style="display: flex; justify-content: space-between; font-size: 12px; color: var(--c-text-muted); margin-bottom: 6px;">
+                            <span>Inspection Progress</span>
+                            <span id="qc-progress-text">0 / 9</span>
+                        </div>
+                        <div style="height: 6px; background: rgba(255,255,255,0.08); border-radius: 8px; overflow: hidden;">
+                            <div id="qc-progress-fill" style="height: 100%; width: 0%; background: linear-gradient(90deg,#3b82f6,#10b981); transition: width .35s;"></div>
+                        </div>
+                        <div id="qc-current-item" style="margin-top: 8px; font-size: 12px; color: #cbd5e1;">Current Item: Standby</div>
+                    </div>
+
+                    <!-- Inspection List -->
+                    <div class="qc-list-container" style="flex: 1; overflow-y: auto; margin-bottom: 20px;">
+                        <div class="qc-group-label" style="font-size: 11px; font-weight: 700; color: var(--c-text-muted); text-transform: uppercase; margin-bottom: 8px;">Exterior Inspection</div>
+                        <ul class="qc-checklist" id="qc-checklist">
+                            <!-- Items will be injected by JS -->
+                        </ul>
+                    </div>
+
+                    <!-- Live Stats -->
+                    <div class="qc-stats" style="border-top: 1px solid var(--border-light); padding-top: 15px;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                            <span class="stat-label">First Pass Yield (FPY)</span>
+                            <span class="stat-value ok" id="qc-yield">100%</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between;">
+                            <span class="stat-label">Defect Count</span>
+                            <span class="stat-value" id="qc-defects" style="color: #fff;">0</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; margin-top: 8px;">
+                            <span class="stat-label">Run Status</span>
+                            <span class="stat-value" id="qc-run-status" style="color: #93c5fd;">Idle</span>
+                        </div>
+                    </div>
+                    <div style="margin-top: 12px; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 12px;">
+                        <div style="font-size: 11px; font-weight: 700; color: var(--c-text-muted); text-transform: uppercase; margin-bottom: 8px;">Defect Hotspots</div>
+                        <ul id="qc-defect-hotspots" style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px;">
+                            <li style="font-size: 12px; color: #94a3b8;">No defect data yet</li>
+                        </ul>
+                    </div>
+                    <div style="margin-top: 12px; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 12px;">
+                        <div style="font-size: 11px; font-weight: 700; color: var(--c-text-muted); text-transform: uppercase; margin-bottom: 8px;">Inspection Event Stream</div>
+                        <ul id="qc-event-log" style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px;">
+                            <li style="font-size: 12px; color: #94a3b8;">Waiting for inspection to start...</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Inspection HUD (Center Screen - Only shows during active check) -->
+                <div id="qc-inspection-hud" class="hidden" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); pointer-events: none;">
+                    <div class="inspection-reticle" style="width: 200px; height: 200px; border: 2px solid rgba(16, 185, 129, 0.5); border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                        <div style="width: 10px; height: 10px; background: var(--c-success); border-radius: 50%;"></div>
+                    </div>
+                    <div class="inspection-label" style="text-align: center; margin-top: 10px; background: rgba(0,0,0,0.7); padding: 5px 10px; border-radius: 4px;">
+                        <span id="inspection-target" style="color: #fff; font-weight: bold;">Checking Surface...</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Floating Controls -->
+            <div style="position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px; pointer-events: auto;">
+                <button class="btn" id="btn-explode" title="Exploded View">
+                    <i class="fa-solid fa-layer-group"></i> Exploded View
+                </button>
+                <button class="btn" id="btn-reset" title="Reset Camera">
+                    <i class="fa-solid fa-compress"></i> Reset View
+                </button>
+            </div>
+        </main>
+
+        <!-- 4. Right Panel (AI & Details) -->
+        <aside class="sys-panel" id="right-panel">
+            <div class="chat-container">
+                <div class="card-header" style="padding: 16px;">
+                    <div class="card-title"><i class="fa-solid fa-robot"></i> QB Intelligent Diagnostic Agent</div>
+                    <div style="font-size: 10px; color: var(--c-success);">● Online</div>
+                </div>
+                
+                <div class="chat-messages" id="chat-history">
+                    <div class="msg system">Connected to QB Edge Diagnostic Core.</div>
+                    <div class="msg ai">
+                        <strong>System ready.</strong><br>
+                        Scenarios: Production QA / After-Sales Intelligence<br>
+                        Mode: Edge inference (data stays on-prem)<br>
+                        <br>
+                        Click a 3D component or enter a fault code to begin diagnosis.
+                    </div>
+                </div>
+
+                <div class="input-area">
+                    <button class="btn" id="btn-mic" style="margin-right: 5px;"><i class="fa-solid fa-microphone"></i></button>
+                    <input type="text" id="ai-input" placeholder="Enter a diagnostic query (e.g., low tire pressure, sensor drift, paint defect)...">
+                    <button class="btn" id="btn-chat-reset" title="Reset AI conversation">
+                        <i class="fa-solid fa-rotate-left"></i> Reset
+                    </button>
+                    <button class="btn btn-primary" id="btn-ai-send"><i class="fa-solid fa-paper-plane"></i></button>
+                </div>
+            </div>
+        </aside>
 
     </div>
 
-    <script type="module" src="js/main.js?v=5"></script>
+    <script type="module" src="js/core/app.js"></script>
 </body>
 </html>

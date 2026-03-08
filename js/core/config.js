@@ -3,7 +3,7 @@
 
 export const CONFIG = {
     APP_NAME: "MeltingHack v5.0",
-    API_KEY: "sk-11dd6e37e3414e059be298ed8b1a0e59",
+    API_KEY: "",
     API_URL: "https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions",
     
     // 3D Settings
@@ -30,7 +30,7 @@ export const CONFIG = {
 
     // Voice
     VOICE: {
-        LANG: 'ja-JP',
+        LANG: 'en-US',
         DEBOUNCE_MS: 1500
     }
 };

@@ -14,18 +14,20 @@ export class VoiceManager {
         this.useMock = false;
 
         // Check support
-        if (!('webkitSpeechRecognition' in window)) {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) {
             console.warn("Speech Recognition not supported. Fallback to mock.");
             this.useMock = true;
         } else {
+            this.SpeechRecognition = SpeechRecognition;
             this.setupRecognition();
         }
     }
 
     setupRecognition() {
         try {
-            this.recognition = new webkitSpeechRecognition();
-            this.recognition.lang = 'ja-JP';
+            this.recognition = new this.SpeechRecognition();
+            this.recognition.lang = 'en-US';
             this.recognition.interimResults = false;
             this.recognition.maxAlternatives = 1;
 
@@ -151,9 +153,9 @@ export class VoiceManager {
         window.speechSynthesis.cancel();
 
         const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = 'ja-JP';
-        utterance.rate = 1.2;
-        utterance.pitch = 1.1;
+        utterance.lang = 'en-US';
+        utterance.rate = 1.0;
+        utterance.pitch = 1.0;
 
         utterance.onstart = () => {
             this.setState('SPEAKING');
